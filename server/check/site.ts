@@ -54,6 +54,9 @@ const STUDIOS: { name: string; word: RegExp; real: RegExp }[] = [
 ];
 const ADDRESS = /\b(0x[a-fA-F0-9]{40}|T[1-9A-HJ-NP-Za-km-z]{33}|(?:EQ|UQ)[A-Za-z0-9_-]{46}|bc1[a-z0-9]{25,62})\b/g;
 
+const decode = (s: string) => s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+
 function hostsIn(html: string): string[] {
   return [...new Set([...html.matchAll(/(?:src|href)=["'](?:https?:)?\/\/([a-z0-9.-]+)/gi)].map((m) => m[1].toLowerCase()))];
 }
@@ -86,7 +89,7 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
     findings.push({ rule: "site_reachable", result: "unknown", detail: `The site didn't answer (${page.status || page.text}).`, source: url, why: "Can't check what we can't load." });
     return { findings, facts };
   }
-  const title = page.text.match(/<title[^>]*>([^<]{0,120})/i)?.[1]?.trim() ?? null;
+  const title = decode(page.text.match(/<title[^>]*>([^<]{0,120})/i)?.[1]?.trim() ?? "") || null;
   facts.title = title;
   const host = new URL(page.url).hostname;
   const scripts = [...page.text.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].map((m) => new URL(m[1], page.url))
