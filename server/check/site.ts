@@ -3,7 +3,7 @@ import type { Net } from "../net";
 import type { Finding, Memory } from "./types";
 import { caseForAddress, caseForDomain, caseForLicense, caseForTracker, PAYOUT_REPORTS } from "./known";
 import { adTrackers, companyClaims, hosting, sameServer, socialProfiles } from "./footprint";
-import { cashoutRules, CONNECT_WALLET, limits, paymentMethods, withdrawScheme } from "./cashout";
+import { cashoutRules, CONNECT_WALLET, FISH_APPS, limits, MANUAL_PAYMENTS, paymentHandles, paymentMethods, withdrawScheme } from "./cashout";
 
 const DAY = 86_400_000;
 const daysSince = (iso: string, now: number) => Math.floor((now - Date.parse(iso)) / DAY);
@@ -62,6 +62,13 @@ const STUDIOS: { name: string; word: RegExp; real: RegExp }[] = [
   { name: "NetEnt", word: /netent/i, real: /(^|\.)netent\.com$/i },
 ];
 const ADDRESS = /\b(0x[a-fA-F0-9]{40}|T[1-9A-HJ-NP-Za-km-z]{33}|(?:EQ|UQ)[A-Za-z0-9_-]{46}|bc1[a-z0-9]{25,62})\b/g;
+
+// "highcash7.com" and "vegascash7.com" share "cash7"; "luckyvaults.vip" and "2friendsmoving.ca" share nothing.
+export function similarName(a: string, b: string): boolean {
+  const x = a.split(".")[0].toLowerCase(), y = b.split(".")[0].toLowerCase();
+  for (let len = Math.min(x.length, y.length); len >= 4; len--) for (let i = 0; i + len <= x.length; i++) if (y.includes(x.slice(i, i + len))) return true;
+  return false;
+}
 
 const decode = (s: string) => s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -181,8 +188,13 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
       : `Server: ${server.org.replace(/^AS\d+\s*/, "")}${server.place ? `, ${server.place}` : ""} (${server.ips[0]}).`, source: server.source, why: "Where a site is hosted is who a report goes to." });
     const sisters = server.front ? null : await sameServer(net, server.ips[0], domain);
     if (sisters?.domains.length) {
-      facts.same_server = sisters.domains;
-      findings.push({ rule: "sister_sites", result: "info", detail: `${sisters.total} other site${sisters.total === 1 ? "" : "s"} on the same server: ${sisters.domains.slice(0, 8).join(", ")}${sisters.total > 8 ? "…" : ""}. Near-identical names usually mean one operator running many brands.`, source: sisters.source, why: "The luckquexa operator ran 45 copies of one casino; when one is shut down, players are moved to the next." });
+      // A shared web host carries hundreds of unrelated small sites (luckyvaults.vip's Namecheap server: 326, from a
+      // moving company to an IPTV shop). Only look-alike names are sisters: highcash7.com and vegascash7.com.
+      // A server carrying a handful of sites is the operator's own (highcash7's has 5), so all of them count there.
+      const lookAlike = sisters.total <= 15 ? sisters.domains : sisters.domains.filter((d) => similarName(d, domain));
+      facts.same_server = lookAlike;
+      if (lookAlike.length) findings.push({ rule: "sister_sites", result: "info", detail: `${lookAlike.length} look-alike site${lookAlike.length === 1 ? "" : "s"} on the same server: ${lookAlike.slice(0, 8).join(", ")}${lookAlike.length > 8 ? "…" : ""}. Near-identical names on one server usually mean one operator running many brands.`, source: sisters.source, why: "The luckquexa operator ran 45 copies of one casino; when one is shut down, players are moved to the next." });
+      if (sisters.total > 30) findings.push({ rule: "shared_host", result: "info", detail: `It's on a shared web host with ${sisters.total} other sites${lookAlike.length ? "" : ", none with a similar name"}. That says nothing about who runs it.`, source: sisters.source, why: "Cheap shared hosting is used by honest small sites and scams alike." });
     }
   }
   // How cashing out works here, in the site's own words. Always shown: it's the question this check is named after.
@@ -204,6 +216,15 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
     source: url, why: "Every scam we checked made the cash-out the trap: pay first, or only a share of each new deposit." });
   const payout = PAYOUT_REPORTS[domain];
   if (payout) findings.push({ rule: "payout_reports", result: "info", detail: `${payout} That's one person's experience: it says the site has paid out before, not that it always will.`, source: "first-hand report to CashOut Check", why: "What really happens at cash-out matters more than anything a site says about itself." });
+  // Deposits paid to a person's own Cash App, Chime or Venmo, checked by hand from a screenshot.
+  const handles = paymentHandles(all + "\n" + configText);
+  const manual = all.match(MANUAL_PAYMENTS);
+  if (handles.length || manual) {
+    facts.payment_accounts = handles;
+    findings.push({ rule: "personal_payment_accounts", result: "warn", detail: `${handles.length ? `It tells you to pay personal payment accounts: ${handles.join(", ")}. ` : ""}${manual ? `Payments are handled by hand: "${manual[0]}". ` : ""}Cash App, Chime and Venmo don't allow gambling on personal accounts, so if you aren't paid, they won't help you get it back, and the account can be frozen with the money in it.`, source: url, why: "luckyvaults.vip takes deposits to the Chime account $Brian-Miller-685: 'Copy the $tag, pay in Chime, then upload the screenshot.'" });
+  } else findings.push({ rule: "personal_payment_accounts", result: "pass", detail: "No personal Cash App, Chime or Venmo accounts to pay by hand.", source: url, why: "luckyvaults.vip takes deposits to a personal Chime account." });
+  const fish = [...new Set((visible.match(FISH_APPS) ?? []).map((x) => x.toLowerCase()))];
+  if (fish.length >= 2) findings.push({ rule: "fish_table_apps", result: "warn", detail: `It sells credits for fish-table and sweepstakes game apps (${fish.slice(0, 6).join(", ")}). These apps are run through resellers ("agents"): your coins live in the reseller's account, and the reseller decides whether and when you're paid. There's no licence or company to complain to.`, source: url, why: "The GameVault app we examined runs an agent and recharge system with an anonymous signer and a junk package name." });
   if (scheme.free_money_locked) findings.push({ rule: "free_money_locked", result: "info", detail: `Winnings from free or bonus credits are kept apart from cash: "${scheme.free_money_locked}". If you've only played on free credits, expect those winnings to stay locked until you deposit. Money you deposit yourself is what can come out first.`, source: url, why: "highcash7 shows a separate 'Withdrawable Amount' and 'Free Winning Withdraw'; a player there found free-credit winnings stayed locked until they deposited." });
   if (CONNECT_WALLET.test(all)) findings.push({ rule: "connect_wallet", result: "warn", detail: "It asks you to connect a crypto wallet. A connected wallet can be asked to approve transactions that empty it; only connect a wallet holding nothing you can't lose.", source: url, why: "luckquexa pushed players to connect a wallet holding at least $200 to a lookalike payment page." });
 
@@ -211,7 +232,8 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
   if (company.length) { facts.company = company; findings.push({ rule: "company", result: "info", detail: `Says it's run by: ${company.join(", ")}. Look the company up in its country's business register.`, source: url, why: "luckquexa named 'New Era B.V.', a company number copied from another fake casino." }); }
   const socials = socialProfiles(all);
   if (socials.length) { facts.social = socials; findings.push({ rule: "social_profiles", result: "info", detail: `Links to: ${socials.map((x) => `${x.site} ${x.profile.replace(/^https?:\/\//, "")}`).join(", ")}.`, source: url, why: "luckquexa's links led to x.com/gamevault_world, tying it to the GameVault apps." }); }
-  // Ad-tracking IDs: always shown, because the same ID on two sites ties them to one advertiser.
+  // Ad-tracking IDs: always shown, because the same ID on two sites ties them to one advertiser. Personal payment
+  // accounts are compared the same way below (the same $tag on two sites is the same operator).
   const trackers = adTrackers(all + "\n" + configText);
   facts.ad_trackers = trackers;
   const whyTrackers = "All 45 luckquexa sites carried the same Facebook and TikTok ad IDs: one advertiser behind all of them.";
@@ -234,11 +256,12 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
   }
   if (shared.length) { facts.same_advertiser_sites = shared; findings.push({ rule: "same_advertiser_sisters", result: "info", detail: `The same ad ID is on its sister site${shared.length === 1 ? "" : "s"}: ${shared.join("; ")}. One advertiser runs them.`, source: "the sister sites' own pages", why: whyTrackers }); }
   // And on sites people checked here before.
-  if (memory && trackers.length) {
-    const seen = await memory.sitesWithTrackers(trackers, domain).catch(() => ({} as Record<string, string[]>));
+  const linkIds = [...trackers, ...(((facts.payment_accounts as string[] | undefined) ?? []).map((h) => `Payment ${h}`))];
+  if (memory && linkIds.length) {
+    const seen = await memory.sitesWithTrackers(linkIds, domain).catch(() => ({} as Record<string, string[]>));
     const lines = Object.entries(seen).filter(([, sites]) => sites.length).map(([id, sites]) => `${id} also on ${sites.slice(0, 5).join(", ")}${sites.length > 5 ? "…" : ""}`);
     if (lines.length) findings.push({ rule: "same_advertiser_seen", result: "info", detail: `Seen before on other checked sites: ${lines.join("; ")}.`, source: "CashOut Check's earlier checks", why: whyTrackers });
-    void memory.rememberTrackers(domain, trackers).catch(() => {});
+    void memory.rememberTrackers(domain, linkIds).catch(() => {});
   }
   findings.push(addresses.length
     ? { rule: "wallets_in_code", result: "info", detail: `Crypto wallets written into its code: ${addresses.slice(0, 4).join(", ")}${addresses.length > 4 ? "…" : ""}. Paste one here to see how much money it collects.`, source: url, why: "Prog Coin's game sent every player's payments to the same fixed wallets." }

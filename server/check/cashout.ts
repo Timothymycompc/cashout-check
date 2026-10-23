@@ -11,12 +11,24 @@ const METHODS: [string, RegExp][] = [
   ["Telegram Stars", /telegram stars|priceStars/i],
 ];
 
+// "Cashouts\r\n- Name on the payment app must match your account." -> ["", "Cashouts: Name on the payment app ..."]
+function rulesBlock(raw: string): string[][] {
+  let heading = "";
+  return raw.split(/\\r\\n|\\n/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
+    if (!line.startsWith("-")) { heading = line; return []; }
+    return [["", `${heading ? `${heading}: ` : ""}${line.replace(/^-\s*/, "")}`]];
+  });
+}
+
 // A site's own sentences about withdrawing or cashing out, from its visible text and the text inside its scripts.
 export function cashoutRules(text: string): string[] {
   const pieces = [
     ...text.matchAll(/(?:N|createTextVNode|_v)\(\s*"([^"\\]{8,220})"\s*\)/g), // text inside Vue/Nuxt-built pages
     ...text.matchAll(/>([^<>{}]{8,220})</g), // text between tags, in pages and in templates inside scripts
     ...text.matchAll(/"(?:q|a|a_withdraw|text|title|desc|description|content)"\s*:\s*"([^"\\]{8,300})"/g), // FAQ-style data
+    // A rules block in the site's settings, one rule per line (luckyvaults: "Name on the payment app must match...").
+    // Each rule keeps its heading, so "Name on the payment app must match your account" reads as a cash-out rule.
+    ...[...text.matchAll(/"rules"\s*:\s*"((?:[^"\\]|\\.){10,3000})"/g)].flatMap((m) => rulesBlock(m[1])),
   ].map((m) => m[1].replace(/&amp;/g, "&").replace(/\\xA0|&nbsp;/g, " ").replace(/\s+/g, " ").trim());
   const about = /withdraw|cash ?out|transfer out|redeem|payout/i;
   // Whole sentences only (four words or more), not button labels like "Withdraw" or "Withdrawable Amount:".
@@ -66,6 +78,28 @@ export function limits(text: string): string[] {
     .map((m) => `${m[1].toLowerCase().startsWith("min") ? "minimum" : "maximum"} ${m[2].toLowerCase().replace("withdraw", "withdrawal").replace("withdrawalal", "withdrawal")} ${m[3].replace(/\s/g, "").replace(/[.,]+$/, "")}`);
   return [...new Set(found)].slice(0, 4);
 }
+
+// Personal payment accounts a site tells you to pay: luckyvaults.vip's settings say Chime "$Brian-Miller-685" with
+// "Copy the $tag, pay in Chime, then upload the screenshot". Read from the site's payment settings ("name"/"value" pairs)
+// and from plain text like "Cash App: $name".
+const HANDLE_APPS: [string, RegExp][] = [["Cash App", /cash\s?app/i], ["Chime", /chime/i], ["Venmo", /venmo/i], ["Zelle", /zelle/i], ["PayPal", /paypal/i]];
+export function paymentHandles(text: string): string[] {
+  const out = new Set<string>();
+  for (const m of text.matchAll(/"name"\s*:\s*"([^"]{2,30})"[^{}]{0,80}?"value"\s*:\s*"(\$[A-Za-z][A-Za-z0-9_-]{1,30}|@[A-Za-z0-9_-]{3,30}|[\w.+-]+@[\w-]+\.[a-z.]{2,})"/g)) {
+    const app = HANDLE_APPS.find(([, re]) => re.test(m[1]))?.[0];
+    if (app) out.add(`${app} ${m[2]}`);
+  }
+  for (const m of text.matchAll(/\b(cash\s?app|chime|venmo)\b[^$@<>"]{0,25}([$@][A-Za-z][A-Za-z0-9_-]{2,30})\b/gi)) {
+    const app = HANDLE_APPS.find(([, re]) => re.test(m[1]))![0];
+    if (!/^\$(tag|value|cashtag|name)$/i.test(m[2])) out.add(`${app} ${m[2]}`);
+  }
+  for (const m of text.matchAll(/paypal\.me\/([A-Za-z0-9_-]{2,40})/gi)) out.add(`PayPal paypal.me/${m[1]}`);
+  return [...out].slice(0, 10);
+}
+// Sites that say coins are loaded or cash-outs paid by hand after you send a screenshot.
+export const MANUAL_PAYMENTS = /upload (?:the |your )?(?:payment )?screenshot|send (?:us )?(?:a |the )?screenshot|coins are loaded after|after our team checks (?:the|your) payment/i;
+// Fish-table and sweepstakes game apps sold through resellers ("agents"): GameVault's APK has an agent/recharge system.
+export const FISH_APPS = /\b(orion stars|fire kirin|juwa|game vault|gamevault|vblink|milky way|panda master|ultra panda|river sweeps|golden dragon|noble 777|cash machine|big winner|mafia ?777|v-?power|riversweeps)\b/gi;
 
 // Asking to connect a crypto wallet: once connected, a site can ask you to approve transactions that empty it.
 export const CONNECT_WALLET = /\b(connect (?:your |a )?wallet|walletconnect|tonconnect|ton-connect|wallet_connect)\b/i;

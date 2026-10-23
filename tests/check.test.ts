@@ -58,6 +58,16 @@ test("shows who's behind a site: server, sister sites and ad IDs, every time", a
   }
 });
 
+test("fish-table lobby: personal payment accounts named, and a shared host isn't called one operator", async () => {
+  const lv = await replay("luckyvaults");
+  assert.ok(lv.findings.some((f) => f.rule === "personal_payment_accounts" && /Chime \$Brian-Miller-685/.test(f.detail) && f.result === "warn"));
+  assert.ok(lv.findings.some((f) => f.rule === "fish_table_apps" && f.result === "warn"));
+  assert.ok(!lv.findings.some((f) => f.rule === "sister_sites"), "326 unrelated sites on a shared host are not sisters");
+  assert.ok(lv.findings.some((f) => f.rule === "shared_host"));
+  assert.ok(lv.findings.some((f) => f.rule === "how_cashout_works" && /Name on the payment app must match/.test(f.detail)), "its own cash-out rules are quoted");
+  assert.ok((await replay("highcash7")).findings.some((f) => f.rule === "sister_sites" && /luckydollar777/.test(f.detail)), "a small server's sites all count");
+});
+
 test("works out what was pasted", () => {
   assert.equal(parseTarget("https://t.me/progcoinbot?start=x").kind, "telegram");
   assert.equal(parseTarget("@progcoinbot").kind, "telegram");
