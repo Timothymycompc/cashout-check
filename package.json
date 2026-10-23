@@ -1,0 +1,33 @@
+{
+  "name": "cashout-check",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CashOut Check: paste an online casino, play-and-earn app, Telegram game or deposit wallet and see the known ways people lose money there.",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "start": "node dist/server.cjs",
+    "build": "tsc --noEmit && esbuild server/index.ts --bundle --platform=node --target=node20 --outfile=dist/server.cjs --external:pg-native",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "tsx scripts/check.ts",
+    "record": "tsx scripts/record.ts"
+  },
+  "dependencies": {
+    "@google-cloud/secret-manager": "^7.2.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "~5.8.2"
+  }
+}
