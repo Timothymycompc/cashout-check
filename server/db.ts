@@ -47,3 +47,23 @@ export async function ownerStats() {
   ]);
   return { days: days.rows, verdicts: verdicts.rows, recent: recent.rows };
 }
+
+// Ad-tracking IDs seen on checked sites, so a later check can say "the same ID is also on these sites". Only the
+// site's domain and its public ad IDs are kept: nothing about who checked it.
+export async function openTrackerMemory() {
+  if (!pool) return undefined;
+  await pool.query(`CREATE TABLE IF NOT EXISTS tracker_sightings (
+    tracker TEXT NOT NULL, domain TEXT NOT NULL, last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (tracker, domain))`);
+  const db = pool;
+  return {
+    sitesWithTrackers: async (ids: string[], except: string) => {
+      const r = await db.query(`SELECT tracker, array_agg(domain ORDER BY last_seen DESC) AS domains FROM tracker_sightings
+        WHERE tracker = ANY($1) AND domain <> $2 GROUP BY tracker`, [ids, except]);
+      return Object.fromEntries(r.rows.map((x: any) => [x.tracker, x.domains as string[]]));
+    },
+    rememberTrackers: async (domain: string, ids: string[]) => {
+      for (const id of ids) await db.query(`INSERT INTO tracker_sightings (tracker, domain) VALUES ($1, $2)
+        ON CONFLICT (tracker, domain) DO UPDATE SET last_seen = NOW()`, [id, domain]);
+    },
+  };
+}

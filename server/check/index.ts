@@ -4,7 +4,7 @@ import { parseTarget } from "./input";
 import { checkSite } from "./site";
 import { checkTelegram } from "./telegram";
 import { checkWallet } from "./wallet";
-import { verdictOf, type CheckResult, type Finding } from "./types";
+import { verdictOf, type CheckResult, type Finding, type Memory } from "./types";
 
 export const HEADLINES = {
   DONT_DEPOSIT: "Don't deposit: this matches a known way people lose money.",
@@ -13,10 +13,10 @@ export const HEADLINES = {
   UNKNOWN: "We couldn't check enough to say anything.",
 } as const;
 
-export async function runCheck(net: Net, input: string, now = Date.now()): Promise<CheckResult> {
+export async function runCheck(net: Net, input: string, now = Date.now(), memory?: Memory): Promise<CheckResult> {
   const target = parseTarget(input);
   let findings: Finding[] = [], facts: Record<string, unknown> = {};
-  if (target.kind === "site") ({ findings, facts } = await checkSite(net, target.domain, target.url, now));
+  if (target.kind === "site") ({ findings, facts } = await checkSite(net, target.domain, target.url, now, memory));
   else if (target.kind === "telegram") ({ findings, facts } = await checkTelegram(net, target.username));
   else if (target.kind === "wallet") ({ findings, facts } = await checkWallet(net, target.address, target.chains));
   else findings = [{ rule: "input", result: "unknown", detail: "Paste a casino or game link, a Telegram bot or channel (t.me/name or @name), or a wallet address.", source: "CashOut Check", why: "Each kind has its own checks." }];

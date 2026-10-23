@@ -17,6 +17,13 @@ export type CheckResult = {
   checked_at: string;
 };
 
+// Ad IDs seen on sites checked before, so a new check can say "the same ID is on these other sites".
+// The server keeps them in its database; tests and the command line run without one.
+export type Memory = {
+  sitesWithTrackers: (ids: string[], except: string) => Promise<Record<string, string[]>>;
+  rememberTrackers: (domain: string, ids: string[]) => Promise<void>;
+};
+
 export function verdictOf(findings: Finding[]): Verdict {
   if (findings.some((f) => f.result === "fail")) return "DONT_DEPOSIT";
   if (findings.some((f) => f.result === "warn")) return "CAREFUL";
@@ -24,3 +31,11 @@ export function verdictOf(findings: Finding[]): Verdict {
   if (findings.some((f) => f.result === "pass")) return "NO_KNOWN_TRAPS";
   return "UNKNOWN";
 }
+
+// Short names for each rule, for the "checked, nothing found" list.
+export const RULE_NAMES: Record<string, string> = {
+  known_case: "our scam case files", domain_age: "domain age", scam_kit: "fake-casino kit", pay_to_withdraw: "pay to withdraw",
+  withdrawal_locked: "locked withdrawals", unfinished_template: "template leftovers", license: "licence", fake_game_studio: "fake game studios",
+  hides_its_code: "hidden code", wallets_in_code: "wallets in its code", earn_from_nothing: "earnings from no token",
+  inflated_views: "bought views", never_pays_out: "never pays out", wallet_activity: "wallet activity",
+};

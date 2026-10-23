@@ -17,6 +17,13 @@ See [our principles](PRINCIPLES.md).
 
 ## What it checks
 
+- **How cashing out really works**, in the site's own words: whether you must deposit before you can withdraw, how much
+  each deposit lets you take out, whether free or bonus winnings are locked until you deposit, steps, conditions, fees,
+  limits and payment methods (Cash App, PayPal, bank card, crypto, PIX, gift cards…). For the fake-casino kit it lists
+  every payment it demands before a withdrawal, with the total.
+- **Who's behind it:** where its server is, other sites on the same server, the company and social profiles it names,
+  and its ad-tracking IDs, compared with its sister sites, our case files and every site checked before. The same ID on
+  two sites means one advertiser.
 - **Websites:** how new the domain is, unfinished template text, the hidden pages of a known fake-casino kit, text that
   makes you pay to withdraw, withdrawals locked behind "tasks", copied licence numbers, games loaded from lookalikes of
   real game studios, scripts that stop you inspecting the page, and crypto wallets in the page's code.
@@ -28,9 +35,10 @@ See [our principles](PRINCIPLES.md).
 
 ## How well it works
 
-Measured on recorded real cases (`tests/cases.ts`, `npm test`): 6 scam entries from 2 investigated scams, and 3 ordinary
-sites. All 9 get the expected answer. With our own case files left out, all 6 scam entries are still flagged by the
-rules alone (2 as Don't deposit, 4 as Be careful). It's a small sample so far; more cases are being added.
+Measured on recorded real cases (`tests/cases.ts`, `npm test`): 6 scam entries from 2 investigated scams, 1 casino
+that pays out but ties withdrawals to new deposits (Be careful), and 3 ordinary sites. All 10 get the expected answer.
+With our own case files left out, all 6 scam entries are still flagged by the rules alone (2 as Don't deposit, 4 as Be
+careful). It's a small sample so far; more cases are being added.
 
 ## Use it
 

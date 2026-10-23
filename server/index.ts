@@ -6,7 +6,7 @@ import { liveNet } from "./net";
 import { runCheck } from "./check";
 import type { CheckResult } from "./check/types";
 import { loadSecrets } from "./secrets";
-import { logCheck, openDb, ownerStats } from "./db";
+import { logCheck, openDb, openTrackerMemory, ownerStats } from "./db";
 import { PAGE } from "./page";
 import { telegramSend, telegramWebhook } from "./telegram";
 import { KNOWN_CASES } from "./check/known";
@@ -18,6 +18,7 @@ const CACHE_MS = 10 * 60_000;
 async function main() {
   await loadSecrets(["CASHOUT_DATABASE_URL", "CASHOUT_TELEGRAM_BOT_TOKEN", "CASHOUT_TELEGRAM_OWNER_IDS", "CASHOUT_OWNER_KEY", "CASHOUT_CALLER_HASH_SECRET"]);
   await openDb().catch((e) => console.error("database unavailable, checks won't be logged:", e));
+  const memory = await openTrackerMemory().catch((e) => { console.error("tracker memory unavailable:", e); return undefined; });
 
   // The same input checked twice in 10 minutes gets the same answer, without asking every source again.
   const cache = new Map<string, { at: number; result: Promise<CheckResult> }>();
@@ -31,7 +32,7 @@ async function main() {
     const key = input.trim().toLowerCase();
     const hit = cache.get(key);
     const started = Date.now();
-    const result = hit && Date.now() - hit.at < CACHE_MS ? hit.result : runCheck(liveNet, input);
+    const result = hit && Date.now() - hit.at < CACHE_MS ? hit.result : runCheck(liveNet, input, Date.now(), memory);
     if (!hit || hit.result !== result) cache.set(key, { at: Date.now(), result });
     if (cache.size > 500) cache.delete(cache.keys().next().value!);
     const r = await result;

@@ -2,7 +2,7 @@
 // answers /check, so normal chat isn't read. Telegram calls POST /telegram/webhook (scripts/telegram-setup.sh).
 import { createHash, timingSafeEqual } from "crypto";
 import type { Request, Response } from "express";
-import type { CheckResult, Finding } from "./check/types";
+import { RULE_NAMES, type CheckResult, type Finding } from "./check/types";
 
 export const SITE = "https://cashout-check-1021990235790.us-central1.run.app";
 const ICON: Record<Finding["result"], string> = { fail: "❌", warn: "⚠️", info: "ℹ️", pass: "✅", unknown: "❔" };
@@ -29,13 +29,15 @@ export const HELP = [
 ].join("\n");
 
 export function formatResult(r: CheckResult): string {
-  const shown = r.findings.filter((f) => f.result !== "pass" || r.verdict === "NO_KNOWN_TRAPS").slice(0, 8);
+  const shown = r.findings.filter((f) => f.result !== "pass").slice(0, 10);
+  const clear = [...new Set(r.findings.filter((f) => f.result === "pass").map((f) => RULE_NAMES[f.rule] ?? f.rule.replace(/_/g, " ")))];
   const lines = [
     VERDICT_LINE[r.verdict],
     esc(r.headline),
     `<code>${esc(r.input.slice(0, 80))}</code>`,
     "",
     ...shown.map((f) => `${ICON[f.result]} ${esc(f.detail)}`),
+    ...(clear.length ? ["", `✅ <b>Checked, nothing found:</b> ${esc(clear.join(", "))}`] : []),
     "",
     `<i>Sources: ${esc([...new Set(shown.map((f) => f.source.split(" (")[0]))].slice(0, 4).join("; "))}</i>`,
     r.verdict === "DONT_DEPOSIT" ? "Never pay a fee, tax or deposit to \"unlock\" a withdrawal. Never connect your wallet or share a seed phrase." : "",

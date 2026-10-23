@@ -13,5 +13,6 @@ export const CASES: Case[] = [
   // Ordinary services that must not be called scams.
   { id: "draftkings", input: "https://www.draftkings.com", expect: "NO_KNOWN_TRAPS", why: "A US-licensed sportsbook and casino, running since 2012." },
   { id: "telegram-durov", input: "https://t.me/durov", expect: "NO_KNOWN_TRAPS", why: "Telegram founder's channel." },
+  { id: "highcash7", input: "https://highcash7.com/#/", expect: "CAREFUL", why: "Sweepstakes-style casino: its own rules release winnings only as 10-100% of each new deposit, but it does pay out (Tim deposited and cashed out). Shares one server with 4 near-identical casinos." },
   { id: "wikipedia", input: "wikipedia.org", expect: "NO_KNOWN_TRAPS", why: "Not a casino at all: must not be judged on casino rules." },
 ];

@@ -37,6 +37,26 @@ test("scams are still flagged without our own case files", async () => {
   }
 });
 
+test("shows who's behind a site: server, sister sites and ad IDs, every time", async () => {
+  const hc = await replay("highcash7");
+  assert.ok((hc.facts.same_server as string[]).includes("vegascash7.com"), "the 4 sister casinos on its server");
+  assert.ok(hc.findings.some((f) => f.rule === "ad_trackers" && /Facebook \d+/.test(f.detail)));
+  assert.ok(hc.findings.some((f) => f.rule === "withdrawal_tied_to_deposits" && f.result === "warn"), "tied to deposits: careful, not a trap");
+  assert.ok(hc.findings.some((f) => f.rule === "free_money_locked"), "free-credit winnings kept apart");
+  assert.ok(hc.findings.some((f) => f.rule === "same_advertiser_sisters" && /vegascash7\.com/.test(f.detail)), "the same Facebook ID on its sister casinos");
+  const lq = await replay("luckquexa");
+  const steps = lq.findings.find((f) => f.rule === "pay_to_withdraw")!;
+  assert.match(steps.detail, /7 payments in a row.*\$4,624 in all/, "luckquexa's whole chain of payments, with the total");
+  assert.ok(lq.findings.some((f) => f.rule === "same_advertiser_sisters"), "its sisters carry the same ad IDs");
+  const wiki = await replay("wikipedia");
+  assert.ok(wiki.findings.some((f) => f.rule === "ad_trackers"), "the ad-ID line is there even when there are none");
+  assert.ok(hc.findings.some((f) => f.rule === "how_cashout_works" && /Cash App/.test(f.detail) && /10% ~ 100%|Deposit any amount/.test(f.detail)), "its payment methods and own cash-out rules are quoted");
+  assert.ok(!(await replay("draftkings")).findings.some((f) => f.rule === "how_cashout_works" && /crypto/.test(f.detail)), "the browser's crypto feature isn't a payment method");
+  for (const rule of ["how_cashout_works", "scam_kit", "pay_to_withdraw", "unfinished_template", "fake_game_studio", "hides_its_code", "wallets_in_code"]) {
+    assert.ok(hc.findings.some((f) => f.rule === rule), `${rule} is reported even when nothing is found`);
+  }
+});
+
 test("works out what was pasted", () => {
   assert.equal(parseTarget("https://t.me/progcoinbot?start=x").kind, "telegram");
   assert.equal(parseTarget("@progcoinbot").kind, "telegram");
