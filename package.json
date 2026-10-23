@@ -8,10 +8,14 @@
   "scripts": {
     "dev": "tsx watch server/index.ts",
     "start": "node dist/server.cjs",
-    "build": "tsc --noEmit && esbuild server/index.ts --bundle --platform=node --target=node20 --outfile=dist/server.cjs --external:pg-native",
+    "build": "tsc --noEmit && npm run bundle",
     "test": "tsx --test tests/*.test.ts",
     "check": "tsx scripts/check.ts",
-    "record": "tsx scripts/record.ts"
+    "record": "tsx scripts/record.ts",
+    "bundle": "esbuild server/index.ts --bundle --platform=node --target=node20 --outfile=dist/server.cjs --external:pg-native",
+    "setup": "bash scripts/setup.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "telegram-setup": "bash scripts/telegram-setup.sh"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^7.2.0",

@@ -30,6 +30,12 @@ export const liveNet: Net = {
   }, o.timeoutMs ?? 12_000),
 };
 
+// Recordings are published with the code, so credentials a scam site leaves in its own pages (Prog Coin's game ships two
+// Telegram bot tokens) are blanked out: we don't republish anyone's keys.
+export const redact = (text: string) => text
+  .replace(/\b\d{8,10}:AA[A-Za-z0-9_-]{30,}/g, "REDACTED_TELEGRAM_BOT_TOKEN")
+  .replace(/\b(sk_live_|AKIA|AIza)[A-Za-z0-9_-]{16,}/g, "$1REDACTED");
+
 const key = (method: string, url: string, body?: unknown) => `${method} ${url}${body === undefined ? "" : ` ${JSON.stringify(body)}`}`;
 
 // Wraps a Net and keeps every answer, to save as a test fixture.
@@ -39,7 +45,7 @@ export function recordingNet(inner: Net = liveNet) {
     get: async (url, o) => (seen[key("GET", url)] = await inner.get(url, o)),
     post: async (url, body, o) => (seen[key("POST", url, body)] = await inner.post(url, body, o)),
   };
-  return { net, save: (file: string, meta: Record<string, unknown>) => fs.writeFileSync(file, JSON.stringify({ ...meta, replies: seen }, null, 1)) };
+  return { net, save: (file: string, meta: Record<string, unknown>) => fs.writeFileSync(file, redact(JSON.stringify({ ...meta, replies: seen }, null, 1))) };
 }
 
 // Plays a recording back. A lookup that wasn't recorded answers status 0, like a site that didn't respond.

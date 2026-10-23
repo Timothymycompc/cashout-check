@@ -32,6 +32,12 @@ Measured on recorded real cases (`tests/cases.ts`, `npm test`): 6 scam entries f
 sites. All 9 get the expected answer. With our own case files left out, all 6 scam entries are still flagged by the
 rules alone (2 as Don't deposit, 4 as Be careful). It's a small sample so far; more cases are being added.
 
+## Use it
+
+- Web: https://cashout-check-1021990235790.us-central1.run.app
+- Telegram: paste a link to the bot; in groups, /check <link>
+- API: `POST /api/check` with `{"input": "<casino link, t.me/bot or wallet>"}`. Free, 30 checks a day per person.
+
 ## Run it
 
 ```bash
@@ -39,6 +45,10 @@ npm install
 npm run check -- https://example-casino.com     # one live check
 npm test                                         # replay the recorded cases
 npm run record                                   # re-record the cases from the live web
+npm run setup                                    # one time: database and secrets on Google Cloud
+npm run deploy                                   # test, start hidden, check, then go live
 ```
+
+Usage is logged for 30 days (what was checked and the answer), with no IP addresses.
 
 MIT licence.
