@@ -43,6 +43,7 @@ test("shows who's behind a site: server, sister sites and ad IDs, every time", a
   assert.ok(hc.findings.some((f) => f.rule === "ad_trackers" && /Facebook \d+/.test(f.detail)));
   assert.ok(hc.findings.some((f) => f.rule === "withdrawal_tied_to_deposits" && f.result === "warn"), "tied to deposits: careful, not a trap");
   assert.ok(hc.findings.some((f) => f.rule === "free_money_locked"), "free-credit winnings kept apart");
+  assert.ok(hc.findings.some((f) => f.rule === "payout_reports" && /one person's experience/.test(f.detail)), "a first-hand payout, labelled as one report");
   assert.ok(hc.findings.some((f) => f.rule === "same_advertiser_sisters" && /vegascash7\.com/.test(f.detail)), "the same Facebook ID on its sister casinos");
   const lq = await replay("luckquexa");
   const steps = lq.findings.find((f) => f.rule === "pay_to_withdraw")!;

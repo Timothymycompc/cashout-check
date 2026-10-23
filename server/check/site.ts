@@ -1,7 +1,7 @@
 // Checks a casino or game website. Each rule below is one of the tricks we found in a real case.
 import type { Net } from "../net";
 import type { Finding, Memory } from "./types";
-import { caseForAddress, caseForDomain, caseForLicense, caseForTracker } from "./known";
+import { caseForAddress, caseForDomain, caseForLicense, caseForTracker, PAYOUT_REPORTS } from "./known";
 import { adTrackers, companyClaims, hosting, sameServer, socialProfiles } from "./footprint";
 import { cashoutRules, CONNECT_WALLET, limits, paymentMethods, withdrawScheme } from "./cashout";
 
@@ -200,6 +200,8 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
       ...(rules.length ? [`Its cash-out rules: ${rules.slice(0, 5).map((r) => `"${r}"`).join(" ")}`] : [])].join("\n")
     : "The site doesn't say how cashing out works, or only shows it after you sign up. Ask before you deposit: how you get paid, how fast, how much at a time, and what it costs.",
     source: url, why: "Every scam we checked made the cash-out the trap: pay first, or only a share of each new deposit." });
+  const payout = PAYOUT_REPORTS[domain];
+  if (payout) findings.push({ rule: "payout_reports", result: "info", detail: `${payout} That's one person's experience: it says the site has paid out before, not that it always will.`, source: "first-hand report to CashOut Check", why: "What really happens at cash-out matters more than anything a site says about itself." });
   if (scheme.free_money_locked) findings.push({ rule: "free_money_locked", result: "info", detail: `Winnings from free or bonus credits are kept apart from cash: "${scheme.free_money_locked}". If you've only played on free credits, expect those winnings to stay locked until you deposit. Money you deposit yourself is what can come out first.`, source: url, why: "highcash7 shows a separate 'Withdrawable Amount' and 'Free Winning Withdraw'; a player there found free-credit winnings stayed locked until they deposited." });
   if (CONNECT_WALLET.test(all)) findings.push({ rule: "connect_wallet", result: "warn", detail: "It asks you to connect a crypto wallet. A connected wallet can be asked to approve transactions that empty it; only connect a wallet holding nothing you can't lose.", source: url, why: "luckquexa pushed players to connect a wallet holding at least $200 to a lookalike payment page." });
 

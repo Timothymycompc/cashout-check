@@ -64,3 +64,9 @@ export const caseForTracker = (id: string) => byTracker.get(id) ?? null;
 export const caseById = (id: string) => KNOWN_CASES.find((c) => c.id === id) ?? null;
 export const caseForLicense = (text: string) =>
   KNOWN_CASES.find((c) => c.licenses.some((l) => new RegExp(`(^|[^0-9A-Za-z])${l.replace(/[/]/g, "\\/")}([^0-9]|$)`).test(text))) ?? null;
+
+// Payouts someone told us about first-hand, with who and when. One report is one person's experience, not a promise.
+export const PAYOUT_REPORTS: Record<string, string> = {
+  "highcash7.com": "The CashOut Check developer played here in October 2026, deposited, and was able to cash out.",
+  "vegascash7.com": "The CashOut Check developer played here in October 2026, deposited, and was able to cash out.",
+};
