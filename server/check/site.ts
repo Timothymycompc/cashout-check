@@ -96,6 +96,8 @@ export async function checkSite(net: Net, domain: string, url: string, now = Dat
   facts.page_status = page.status;
   if (page.status === 0 || page.status >= 500) {
     findings.push({ rule: "site_reachable", result: "unknown", detail: `The site didn't answer (${page.status || page.text}).`, source: url, why: "Can't check what we can't load." });
+    // A domain's age alone isn't a check of the site: without the page, the answer is "couldn't check", never clean.
+    for (const f of findings) if (f.result === "pass") f.result = "info";
     return { findings, facts };
   }
   const title = decode(page.text.match(/<title[^>]*>([^<]{0,120})/i)?.[1]?.trim() ?? "") || null;

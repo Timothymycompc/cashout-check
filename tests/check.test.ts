@@ -68,6 +68,11 @@ test("works out what was pasted", () => {
   assert.equal(parseTarget("hello there").kind, "unknown");
 });
 
+test("a site that doesn't load is 'couldn't check', even with an old domain", async () => {
+  const net = { get: async (url: string) => url.includes("iana.org") || url.includes("rdap") ? { status: 0, url, text: "", headers: {} } : { status: 0, url, text: "ENOTFOUND", headers: {} }, post: async (url: string) => ({ status: 0, url, text: "", headers: {} }) };
+  assert.equal((await runCheck(net, "jinsha.mobi")).verdict, "UNKNOWN");
+});
+
 test("a page of unknowns is never a clean result", () => {
   assert.equal(verdictOf([{ rule: "x", result: "unknown", detail: "", source: "s", why: "w" }]), "UNKNOWN");
   assert.equal(verdictOf([{ rule: "x", result: "info", detail: "", source: "s", why: "w" }]), "UNKNOWN");
